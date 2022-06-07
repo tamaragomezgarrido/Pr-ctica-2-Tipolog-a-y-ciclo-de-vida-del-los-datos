@@ -1,1 +1,1 @@
-# Pr-ctica-2-Tipolog-a-y-ciclo-de-vida-del-los-datos
+# Practica-2-Tipologia-y-ciclo-de-vida-del-los-datos
