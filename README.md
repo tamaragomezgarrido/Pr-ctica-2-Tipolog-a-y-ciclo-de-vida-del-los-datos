@@ -6,7 +6,7 @@ Nombre: Tamara Gómez Garrido.
 
 Ficheros:
 
-Carpeta código con los siguientes ficheros:
-Código R de la realización de la limpieza de datos y análisis.
-
-Documento PDF que da respuesta a la práctica.
+- Código R de la realización de la limpieza de datos y análisis.
+- Documento PDF que da respuesta a la práctica.
+- Dataset original.
+- Dataset final (csv).
