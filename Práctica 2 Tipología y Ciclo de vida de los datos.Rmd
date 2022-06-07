@@ -1,0 +1,519 @@
+---
+title: "Práctica 2 Tipología y ciclo de vida de los datos"
+author: "Tamara Gómez Garrido"
+date: "June 2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval=T, echo=T, warning = FALSE, message = FALSE, cache = FALSE)
+```
+
+Para esta práctica he escogido el conjunto de datos 'satisfaction.xlsx' el cual he descargado de la plataforma *kaggle*. Disponible aquí: [Passenger Satisfaction](https://www.kaggle.com/datasets/johndddddd/customer-satisfaction). 
+
+Este dataset contiene los datos de una encuesta sobre satisfacción a los pasajeros de una aerolínea.  
+Analizando estos datos podemos determinar qué variables influyen más en la satisfacción de los pasajeros, así como comprobar si existen diferencias en la satisfacción de diferentes grupos de individuos.
+
+
+### 1.Carga de los datos.
+
+```{r}
+library(readxl)
+satisfactiondata <- read_excel('satisfaction.xlsx', sheet = 'satisfaction_v2', na = 'NA')
+```
+
+```{r}
+head(satisfactiondata)
+```
+**Comprobamos las dimensiones del dataframe.**
+
+```{r}
+dim(satisfactiondata)
+```
+
+.
+
+### 2.Estructura del dataset e identificación de las variables.
+
+```{r}
+str(satisfactiondata)
+```
+
+Las variables presentes en el dataset son:
+
+**Satisfaction**: Nivel de satisfacción con la aerolínea (Satisfaction, neutral or dissatisfaction).  
+**Age**: Edad de los pasajeros.  
+**Gender**: Género de los pasajeros (Female, Male).  
+**Type of Travel**:Propósito del vuelo (Personal Travel, Business Travel).  
+**Class**: Clase en la que han viajado los pasajeros (Business, Eco, Eco Plus).  
+**Customer Type**: Tipo de cliente (Loyal customer, disloyal customer).  
+**Flight distance**: Distancia de vuelo.  
+**Inflight wifi service**: Nivel de satisfacción del wifi durante el vuelo (0:Not Applicable;1-5).  
+**Ease of Online booking**: Nivel de satisfacción con la reserva online.  
+**Inflight service**: Nivel de satisfacción con el servicio durante el vuelo.  
+**Online boarding**: Nivel de satisfacción con el embarque en línea.  
+**Inflight entertainment**: Nivel de satisfacción con el entretenimiento durante el vuelo.  
+**Food and drink**: Nivel de satisfacción de la bebida y comida durante el vuelo.  
+**Seat comfort**: Nivel de satisfacción con el confort del asiento.  
+**On-board service**: Nivel de satisfacción con el servicio a bordo.  
+**Leg room service**: Nivel de satisfacción con el espacio para las piernas.  
+**Departure/Arrival time convenient**: NIvel de satisfacción con la hora de salida/llegada de conveniencia.  
+**Baggage handling**: Nivel de satisfacción con el manejo del equipaje.  
+**Gate location**: Nivel de satisfacción con la localización de la puerta de embarque.  
+**Cleanliness**: Nivel de satisfacción con la limpieza.  
+**Check-in service**: Nivel de satisfacción con el registro.  
+**Departure Delay in Minutes**: Minutos de retraso en la salida del vuelo.  
+**Arrival Delay in Minutes**: Minutos de retraso en la llegada del vuelo.  
+
+.
+
+### 3.Comprobamos si hay valores nulos o vacíos
+
+```{r}
+#Comprobar si hay algún valor nulo.
+any(is.na(satisfactiondata))
+```
+
+```{r}
+#Columnas en las que hay valores nulos.
+colSums(is.na(satisfactiondata))
+```
+
+Existen 393 observaciones con valores nulos en la variable 'Arrival Delay in Minutes'.
+
+```{r}
+#Columnas con valores vacíos.
+colSums(satisfactiondata == '')
+```
+
+No hay variables que presenten valores vacíos.  
+
+Eliminamos las observaciones que presentan valores nulos con el objetivo de limpiar los datos para futuros análisis.  
+
+```{r}
+satisfactiondata <- na.omit(satisfactiondata)
+```
+
+Comprobamos que ya no existen valores nulos.
+
+```{r}
+any(is.na(satisfactiondata))
+```
+
+```{r}
+#Eliminamos la columna id que en este caso no vamos a utilizar.
+satisfactiondata <- satisfactiondata[-1]
+```
+
+
+### 4.Valores extremos o erróneos.  
+
+#### 4.1. Variables cuantitativas.
+
+Vamos a tratar las variables numéricas.  
+Se consideran variables numéricas aquellas que puramente lo son. Las variables que indican nivel de satisfacción son variables que miden la satisfacción según la escala de likert, entre los valores del 1 al 5, por lo que debemos asegurarnos de que estas variables no tomen ningún valor que no sea estos.  
+La variable 'Id' es numérica pero no es interesante en este estudio.
+
+
+**Variable edad**  
+
+Visualizamos la distribución de la variable con un diagrama de caja.
+
+```{r}
+boxplot(satisfactiondata$Age, main = 'Age')
+```
+
+En el diagrama de caja de la variable 'Age' vemos que no existen datos aislados.  
+Sin embargo, vamos a considerar como outliers aquellos individuos de los que se haya registrado una edad menor de 18 años y una edad mayor de 85 años.  
+
+```{r}
+outAge <- satisfactiondata$Age[satisfactiondata$Age < 18 | satisfactiondata$Age > 85]
+length(outAge)
+```
+
+Eliminamos estos valores que se encuentran fuera del rango de edad que hemos determinado.  
+
+```{r}
+
+satisfactiondata <- satisfactiondata[!(satisfactiondata$Age %in% outAge),]
+```
+
+
+**Variable Departure Delay**
+
+Visualizamos la distribución de la variable mediante un diagrama de caja.  
+
+```{r}
+depdelay <- boxplot(satisfactiondata$`Departure Delay in Minutes`, main = 'Dep delay', horizontal = TRUE)
+```
+
+Podemos observar según el gráfico que los valores que toma la variable se concentran en unos pocos valores muy bajos, mientras que aparecen gran cantidad de outliers, algunos muy alejados del valor del tercer cuartil.
+
+```{r}
+length(depdelay$out)
+```
+
+Según el diagrama de caja (en el que quedan representados los cuartiles y la mediana) de la variable obtenemos que son 17970 observaciones las que se consideran outliers.  
+No obstante, se entiende que pueden haber vuelos que se hayan demorado mucho, no es que estos valores se deban a un error en la recogida de datos y sería un error eliminar estos valores de la variable ya que los datos podrían quedar sesgados.  
+
+Vamos a ver los valores de la distribución de la variable.
+
+```{r}
+summary(satisfactiondata$`Departure Delay in Minutes`)
+```
+
+Con estos valores vemos que el 75% de los vuelos han sufrido retrasos de 12 minutos o menos.  
+
+Vamos a ver cuántos vuelos sufrieron retrasos de más de 12 horas.  
+
+```{r}
+bigdelay <- satisfactiondata$`Departure Delay in Minutes`[satisfactiondata$`Departure Delay in Minutes` > 720]
+length(bigdelay)
+```
+
+Son 16 vuelos los que sufrieron retrasos de más de 12 horas.  
+
+
+**Variable Arrival Delay**.  
+
+Visualizamos la distribución de la variable mediante un diagrama de caja.  
+
+```{r}
+arrivaldelay <- boxplot(satisfactiondata$`Arrival Delay in Minutes`, main = 'Arrival delay', horizontal = TRUE)
+```
+
+Al igual que pasaba con la variable 'Departure Delay' podemos comprobar con el diagrama de caja que los valores se concentran en pocos valores muy bajos, existiendo gran cantidad de valores atípicos, especialmente dos valores que se encuentran muy alejados del resto.  
+
+```{r}
+length(arrivaldelay$out)
+```
+
+Son 16.152 observaciones las que en el gráfico se representan como valores atípicos.  
+
+Al igual que con la variable anterior, vamos a ver su distribución.  
+
+```{r}
+summary(satisfactiondata$`Arrival Delay in Minutes`)
+```
+
+Podemos comprobar que los valores son similares a los de la variable 'Departure Delay'.  
+
+Vamos a comprobar si existe una correlación entre estas dos variables.
+
+```{r}
+plot(satisfactiondata$`Departure Delay in Minutes`, satisfactiondata$`Arrival Delay in Minutes`, ylab = 'Arrival Delay', xlab = 'Departure Delay')
+```
+
+Podemos observar que existe una correlación lineal positiva entre las variables, es decir, a medida que aumenta la variable 'Departue Delay' también aumenta el valor de la variable 'Arrival Delay', y que los valores alejados de una variable se corresponden con los valores alejados de la otra, lo que nos puede indicar que los datos recogidos no son erróneos, sino que realmente ha habido vuelos que han sufrido mucho retraso.  
+
+Por esta razón, de momento, no vamos a eliminar los valores atípicos, porque no son erróneos.
+
+
+**Variable Flight Distance**  
+
+Visualizamos la distribución de la variable mediante un diagrama de caja.  
+
+```{r}
+flightdistance <- boxplot(satisfactiondata$`Flight Distance`, main = 'Flight Distance', horizontal = TRUE)
+```
+
+Esta variable presenta una mayor dispersión que las variables analizadas anteriormente.  
+También aparecen valores atípicos pero no podemos descartarlos porque no tienen por qué ser erróneos, sino que son vuelos de larga distancia.  
+
+```{r}
+length(flightdistance$out)
+```
+
+En este caso son 2124 observaciones las que se consideran valores atípicos según el diagrama de caja.
+
+
+Vamos a ver cómo se distribuye la variable.  
+
+```{r}
+summary(satisfactiondata$`Flight Distance`)
+```
+
+Vemos que el 75% de los vuelos tienen una distancia de menos de 2540 kilómetros.
+
+
+#### 4.2.Variables de la escala de Likert.  
+
+Debemos comprobar que los valores de las variables que miden la satisfacción de los pasajeros en diferentes aspectos tengan valores del 0 al 5.  
+
+```{r}
+likertcolumns <- satisfactiondata[c('satisfaction_v2', 'Seat comfort','Departure/Arrival time convenient','Food and drink','Gate location','Inflight wifi service','Inflight entertainment','Online support','Ease of Online booking','On-board service','Leg room service','Baggage handling','Checkin service','Cleanliness','Online boarding')]
+likertcolumns <- likertcolumns[-1]
+```
+```{r}
+colSums(likertcolumns < 0 | likertcolumns > 5)
+
+```
+
+
+Podemos comprobar que ninguna de estas variables tiene valores fuera del rango deseado.  
+
+
+#### 4.3.Variables cualitativas.  
+
+Vamos a comprobar que las variables cualitativas no presentan valores erróneos.
+
+**Satisfaction v_2**  
+
+```{r}
+table(satisfactiondata$satisfaction_v2)
+```
+
+**Gender**  
+
+```{r}
+table(satisfactiondata$Gender)
+```
+
+**Customer Type**  
+
+```{r}
+table(satisfactiondata$`Customer Type`)
+```
+
+**Type of Travel**  
+
+```{r}
+table(satisfactiondata$`Type of Travel`)
+```
+
+**Class**  
+
+```{r}
+table(satisfactiondata$Class)
+```
+
+Hemos comprobado que no existen datos erróneos en las variables cualitativas.
+
+
+### 5.Análisis de los datos.  
+
+#### 5.1. ¿Existen diferencias en la satisfacción de los pasajeros dependiendo del propósito del viaje que hayan realizado? ¿Y dependiendo de la clase en la que viajan?
+
+Podemos analizar si existen diferencias en el nivel de satisfacción dependiendo de la clase en la que viajen los pasajeros y el propósito del viaje.  
+
+```{r}
+#Test de chi-cuadrado para comprobar la dependencia entre las variables 'satisfaction' y 'Type of Travel'.
+tabla_prop <- table(satisfactiondata$satisfaction_v2, satisfactiondata$`Type of Travel`)
+chisq.test(tabla_prop, correct = FALSE)
+```
+  
+
+```{r}
+#Test de chi-cuadrado para comprobar la dependencia entre las variables 'satisfaction' y 'Class'.
+tabla_clase <- table(satisfactiondata$satisfaction_v2, satisfactiondata$Class)
+chisq.test(tabla_clase, correct = FALSE)
+```
+`
+
+Con los resultados de estos análisis Chi-cuadrado para comprobar si la satisfacción estaba relacionada con el propósito del viaje realizado y con la clase en la que viaja el pasajero, podemos rechazar la hipótesis nula de que estas variables son independientes del nivel de satisfacción, por lo que podemos concluir que sí influye el propósito del viaje y la clase en la que viajan los pasajeros en el nivel de satisfacción.  
+
+
+```{r}
+#Mostramos las proporciones de las tablas de contingencia entre la variable 'Type of Travel' y la variable 'satisfaction'.
+prop.table(tabla_prop, margin = 2)*100
+```
+
+De los pasajeros que viajan con el propósito de negocios, el 41% se muestran neutral o no satisfechos, mientras que el 59% indican que están satisfechos.  
+
+Por contra, de quienes viajan por temas personales, el 53,5% indican que tienen una satisfacción neutral o no están satisfechos con el viaje, mientras que el 46,5% han indicado que están satisfecho.
+
+Por lo tanto, se muestran más satisfechos quienes realizan el viaje por motivos de negocios.  
+
+
+```{r}
+#Mostramos las proporciones de las tablas de contingencia entre la variable 'Class' y la variable 'satisfaction'.
+prop.table(tabla_clase, margin = 2)*100
+```
+
+Mediante los resultados obtenidos con la tabla y sabiendo que existe una relación entre las variables, podemos concluir que los menos satisfechos son los que viajan en la clase 'Eco', mientras que los más satisfechos son los pasajeros que viajan en 'Business'.
+
+
+#### 5.2. ¿Existe alguna relación entre la distancia del vuelo y el retraso en la llegada? 
+
+```{r}
+plot(satisfactiondata$`Flight Distance`, satisfactiondata$`Arrival Delay in Minutes`)
+```
+
+```{r}
+cor(satisfactiondata$`Flight Distance`, satisfactiondata$`Arrival Delay in Minutes`, method = 'pearson')
+```
+
+Podemos comprobar mediante el gráfico y el valor del coeficiente de correlación de pearson que no existe niguna relación entre la distancia del vuelo y el retraso en la llegada de este.
+
+
+#### 5.3. ¿Qué variables son las que más influyen en la satisfacción de los clientes?
+
+```{r}
+#Convertimos las variables de los diferentes aspectos de la satisfacción en factor.
+
+for(i in colnames(likertcolumns)) {
+  satisfactiondata[[i]] <- factor(satisfactiondata[[i]])
+}
+```
+
+```{r}
+satisfactiondata$satisfaction_v2 <- factor(satisfactiondata$satisfaction_v2)
+table(satisfactiondata$satisfaction_v2)
+```
+
+
+```{r}
+#aplicamos el modelo de regresión logística.
+modelo_log <- glm(satisfaction_v2 ~ `Seat comfort`+ `Departure/Arrival time convenient` + `Food and drink`+`Gate location`+`Inflight wifi service`+`Inflight entertainment` + `Online support` + `Ease of Online booking`+`On-board service`+`Leg room service`+`Baggage handling`+`Checkin service`+`Cleanliness`+`Online boarding`, data = satisfactiondata, family = binomial)
+```
+
+```{r}
+summary(modelo_log)
+```
+
+Obtenemos estos resultados con unos errores estándares tan altos y el mensaje de advertencia porque puede que existan algunas variables correlacionadas entre sí.  
+Las variables independientes del modelo no deben estar muy correlacionadas entre sí, porque si la correlación entre dos variables es alta, los resultados del modelo son poco fiables.
+
+Para solucionar la multicolinelidad de las variables independientes debemos aplicar una reducción de dimensiones mediante un análisis de componentes principales (PCA).
+
+```{r}
+library(FactoMineR)
+library(factoextra)
+
+pca <- PCA(likertcolumns, graph = FALSE) #generación del objeto PCA
+```
+
+```{r}
+pca$eig #eigenvalues del PCA. Con la varianza acumulada podemos seleccionar las dimensiones.
+```
+
+```{r}
+fviz_screeplot(pca, addlabels = TRUE) #Representación de la varianza explicada por cada componente del PCA.
+```
+
+```{r}
+if(!require(paran)){
+    install.packages('paran', repos='http://cran.us.r-project.org')
+    library(paran)
+}
+#Método paralelo para determinar el número de componentes a retener.
+paran(likertcolumns, graph = TRUE)
+```
+
+Según el criterio del gráfico y según el método paralelo, el número de componentes que deberían retenerse es cuatro. Estas cuatro variables explican un 68,5% de la variabilidad de los datos.
+
+Vamos a ver la contribución de cada variable para la formación de los componentes principales.
+
+```{r}
+#Contribución de cada variable a la formación de las dimensiones del pca.
+pca$var$contrib
+```
+
+
+La dimensión 1 (Dim.1) está formada por la contribución de las variables: 'Online support' y 'Ease of online booking', con lo que podemos decir que esta sería la dimensión que recoge la información sobre el servicio al cliente.  
+
+La dimesión 2 (Dim.2) está formada por las variables: 'Seat comfort', 'Departure/Arrival time convenient', 'Food and drink', y 'Gate location'. Esta dimensión recoge la información sobre la comodidad del servicio.  
+
+La dimensión 3 (Dim.3) está formada por las variables: 'Inflight wifi service', 'On-board service', 'Leg room service', 'Baggage handling', 'Cleanliness', 'Online boarding'. Por lo tanto, esta es la dimensiión sobre los aspectos básicos del vuelo.  
+
+La dimensión 4 (Dim.4) está formada por las variables: 'Inflight entertainment' y 'Chekin service'. Esta es por tanto la dimensión que recoge la información sobre los servicios extras.
+
+```{r}
+fviz_pca_var(pca, col.var = "contrib")
+```
+
+```{r}
+fviz_pca_var(pca, axes = c(3,4), col.var = "contrib")
+```
+
+
+**Modelo de regresión logística con las dimensiones del PCA.**  
+
+Con esta información vamos crear un modelo de regresión logística con las dimensiones obtenidas mediante el análisis de componentes principales para evitar así la multicolinealidad.
+
+```{r}
+score <- as.data.frame(get_pca_ind(pca)$coord) #información de las observaciones
+datamodel <- cbind(satisfactiondata$satisfaction_v2, score[1:4]) #se crea un dataframe con las coordenadas de las observaciones
+datamodel$`satisfactiondata$satisfaction_v2` <- factor(datamodel$`satisfactiondata$satisfaction_v2`) #la variable satisfaction_v2 (dependiente) tiene que ser tipo factor.
+modelo_log_pca <- glm(satisfactiondata$satisfaction_v2 ~ Dim.1 + Dim.2 + Dim.3 + Dim.4, data = datamodel, family = binomial) #modelo de regresión logística con las dimensiones del PCA como variables independientes.
+summary(modelo_log_pca)
+```
+
+Se debe tener en cuenta que en este caso, para la variable 'satisfaction_v2', el modelo interpreta la clase 'neutral or disatisfied' como 0 y 'satisfied' como 1.  
+
+**Ajuste del modelo.**
+
+```{r}
+if(!require(pscl)){
+    install.packages('pscl', repos='http://cran.us.r-project.org')
+    library(pscl)
+}
+
+pR2(modelo_log_pca)
+```
+
+El valor de la métrica McFadden indica que el modelo tiene un ajuste muy bueno. 
+
+**Conlusiones**
+
+Según los resultados obtenidos con el modelo, la dimensión 3 que se refiere a los aspectos básicos del vuelo, no es significativa en la explicación de la satisfacción general de los pasajeros.  
+Atendiendo a las otras dimensiones, obtenemos que valores bajos en la dimensión 4 (extras) contribuyen a la insatisfacción o neutralidad de los pasajeros, como también ocurre con la dimensión 2 (comodidad), mientras que valores altos de la dimensión 1 (servicio al cliente) contirbuyen a aumentar la satisfacción de los clientes.  
+
+Con esto podemos concluir, que lo más importante para que los pasajeros queden satisfechos con su experiencia con la aerolínea es la antención al cliente.
+
+
+### Pasajeros de la clase 'Economy'.
+
+Hemos detectado que los pasajeros que viajan en la clase 'Economy' son los que en menor porcentaje se muestran satisfechos.  
+
+Vamos a analizar las variables que conforman el componente de servicio al cliente para este segmento.  
+
+```{r}
+economy <- subset(satisfactiondata, Class == 'Eco')
+no_economy <- subset(satisfactiondata, Class == 'Business' | Class == 'Eco Plus')
+```
+
+```{r}
+#Variable 'Online support'
+class_onlinesupport <- table(satisfactiondata$Class, satisfactiondata$`Online support`)
+prop.table(class_onlinesupport, margin = 1)*100
+```
+
+```{r}
+chisq.test(class_onlinesupport, correct = FALSE)
+```
+
+```{r}
+#Variable 'Ease of online booking'
+tabla_ease <- table(satisfactiondata$`Class`, satisfactiondata$`Ease of Online booking`)
+prop.table(tabla_ease, margin = 1)*100
+```
+
+```{r}
+chisq.test(tabla_ease, correct = FALSE)
+```
+
+Para ambas variables, las diferencias son significativas entre los pasajeros que vuelan en las diferentes clases.  
+
+Podemos observar como en ambas variables que corresponden a la dimensión de servicio al cliente, las clases 'Economy' dan en menor proporción que la clase 'Business' puntuaciones altas a su satisfacción con estas variables.
+
+
+### Conclusiones finales.
+
+Se muestran más satisfechos quienes viajan por negocios que quienes realizan un viaje personal.  
+En cuanto a la clase, quienes viajan en Business son los más satisfechos. La clase Economy son los que se muestran más insatisfechos.  
+
+Podemos determinar cuatro dimensiones de satisfacción del cliente: servicio al cliente, comodidad, servicios básicos del vuelo, servicios extra.  
+La dimensión más importante para la satisfacción de los clientes es la del servicio al cliente.
+
+Se ha comprobado que para las variables que conforman esta dimensión del servicio al cliente ('Online support' y 'Ease of online booking') existen diferencias significativas entre las puntuaciones de la clase 'Business' y la clase 'Economy', siendo las de estos últimos menos satisfactoria, por lo que la compañía debería prestar atención en estos aspectos para mejorar la satisfacción de sus clientes.
+
+
+```{r}
+#Exportación de los datos a csv.
+write.csv(satisfactiondata, "satisfactiondata_clean.csv")
+```
+
+
